@@ -52,17 +52,54 @@ outputs:
 `curl -pinkfloyd`
 
 ### To get descriptions
+
+`flax d ls -XAGh --group-directories-first`
+
 ```bash
-flax d ls -XAGlh --group-directories-first
-flax D rsync -acronyms                       # A meta-acronym?
+ls (1)               - list directory contents
+                             extension -X, size -S, time -t, version -v  
+  -X                         sort alphabetically by entry extension  
+  -A, --almost-all           do not list implied . and ..  
+  -G, --no-group             in a long listing, don't print group names  
+  -h, --human-readable       with -l, print sizes in human readable format  
+      --group-directories-first 
 ```
+and 
+
+`flax d rsync -acronyms                       # A meta-acronym?`
+
+```bash
+rsync (1)            - a fast, versatile, remote (and local) file-copying tool
+ -a, --archive               archive mode; equals -rlptgoD (no -H,-A,-X)  
+ -c, --checksum              skip based on checksum, not mod-time & size  
+ -r, --recursive             recurse into directories  
+ -o, --owner                 preserve owner (super-user only)  
+ -n, --dry-run               perform a trial run with no changes made  
+ -y, --fuzzy                 find similar file for basis if no dest file  
+ -m, --prune-empty-dirs      prune empty directory chains from the file-list  
+ -s, --protect-args          no space-splitting; only wildcard special-chars
+ ```
+
 Also works with builtin functions...
 
 `flax d echo -en`
 
+```bash
+echo (1)             - display a line of text
+      -e        enable interpretation of the following backslash escapes  
+      -n        do not append a newline
+```
+
 ...and with commands that use XF86-style long flags (-myoption):
 
-`flax desc lynx -dump -vikeys`
+`flax d lynx -ftp -vikeys`
+
+```bash
+lynx (1)             - a general purpose distributed information browser for the World Wide Web
+  -ftp              disable ftp access (off)  
+  -vikeys           enable vi-like key movement (off)
+```
+
 
 ## WARNING
 This program has not been tested for all corner cases. Exercise caution when using the output commands, because even if the original input was correct, the output *may* not be. No warranties, please be smart. But if files disappear, your cat is microwaved or sundry related tragedies occur, I welcome you to curse me, tell me how to fix it, or at least send me a bug report.
