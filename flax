@@ -1,0 +1,409 @@
+#!/bin/bash
+
+#--------------------------------------------------------------------------
+#
+#                               ▗▀▖▜       
+#                               ▐  ▐ ▝▀▖▚▗▘
+#                               ▜▀ ▐ ▞▀▌▗▚ 
+#                               ▐   ▘▝▀▘▘ ▘
+#
+# FlaX, the Flag Expander!
+#   * Expands to long flags a command's short flags
+#   * Unexpands to short flags a command's long flags
+#   * Gives help on the command's flags
+#
+#--------------------------------------------------------------------------
+#
+# Found this useful? Appalling? Appealing? Please let me know.
+# The Unabashed welcomes your impressions. 
+#
+# You will find the
+#   unabashed
+# at the location opposite to
+#   moc • thgimliam
+#
+#--------------------------------------------------------------------------
+#
+# License:
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+#
+#--------------------------------------------------------------------------
+
+# Note: This program has been obnoxiously written with long flags only,
+#       even in the most simple cases. It may seem a bit overkill. (It is.)
+
+# Program name from its filename
+prog=${0##*/}
+
+
+# Some colors
+DARKGRAY='\e[1;30m'
+LIGHTRED='\e[1;31m'
+LIGHTPURPLE='\e[1;35m'
+YELLOW='\e[1;33m'
+NC='\e[0m'  
+
+# Calling for help is the same as calling without arguments.
+case $1 in --help|-[h?])  $prog; exit 1  ;; esac
+
+# Usage if argument isn't given, or if less than two arguments.
+[[ $# -lt 3 ]] && {
+    clear
+    echo -e "
+${LIGHTRED}Description:${NC}
+    * Flax, the Flag Expander *
+
+    Expands a command's short flags to long flags. 
+    Useful to give your scripts more legibility. See for example:
+        ${LIGHTPURPLE}https://thechangelog.com/use-long-flags-when-scripting/${NC}
+
+    Shrinks a command's long flags to short flags 
+        Useful for command line's convenience.
+
+    Gives help on the command's flags
+        Useful to quickly check help on the options being used.
+    
+${LIGHTRED}Usage:${NC}
+    ${YELLOW}$prog [long|l|L | short|s|S | desc|d|D] [COMMAND with flags]${NC}
+
+${LIGHTRED}Examples:${NC}
+    ${YELLOW}$prog long wget -r --relative -H -Q 6 -D de,ca,com${NC}    # Invented, makes no sense
+    ${YELLOW}$prog l rsync -tomhanks --fuzzy -T somedir${NC}            # rsync has so many flags you can have Tom Hanks in it...     
+    ${YELLOW}$prog L curl -tomcruise www.myurl.com${NC}                 # ...and so does curl
+
+    ${YELLOW}$prog S ls -X --almost-all --no-group -l --human-readable${NC}   
+    # output: ls -XAGlh
+
+    ${YELLOW}$prog s curl --proxytunnel --include --netrc --insecure --fail --list-only --output --speed-time --data${NC}       
+    # output: curl -pinkfloyd
+
+    ${YELLOW}$prog d ls -XAGlh --group-directories-first${NC}   # Get help on those flags
+    ${YELLOW}$prog D rsync -acronyms${NC}                       # A meta-acronym?
+    ${YELLOW}$prog d echo -en ${NC}                             # Works with builtin functions
+    ${YELLOW}$prog desc lynx -dump -vikeys${NC}                 # Works with commands that use XF86-style long flags (-myoption)
+
+    ${YELLOW}$prog l \$(xsel -ob) | xsel -ib${NC}                # Converts to long flag in your clipboard
+
+${LIGHTRED}Note:${NC}
+    ${LIGHTPURPLE}*WARNING*${NC}
+    This program has not been tested for all corner cases. Exercise caution when using the
+    output commands, because even if the original input was correct, the output *may* not
+    be. No warranties, please be smart. But if files disappear, your cat is microwaved or
+    sundry related tragedies occur, I welcome you to curse me, tell me how to fix it, or at
+    least send me a bug report.
+
+${LIGHTRED}Limitations (not exhaustive):${NC}
+    Ignores inexistent flags. Uses 1st match. Uses 1st given expansion.
+    Builtin functions (cd, echo, etc.) don't use long flags. Therefore, only the -d option is available.
+    'cp -p'         issue:  no long flags, but one appears in the info at the right that isn't it. (Try to fix.)
+    'sed -iThis'    issue:  argument glued to flag.           Not treated: rather rare and too much trouble to handle.
+    'wget -nv -nc'  issue:  some single dash with 2+ letters. Not treated: rather rare and too much trouble to handle.
+    'lynx -dump'    issue:  only single dash with 2+ letters. Only treated for help/description option.
+    'netstat -tuxw' issue:  long flags for those are in a separate line harder to parse. Not treated.
+    "
+    exit 1
+}
+
+#----------------------------------------------------------------------------
+# Check for missing commands
+needed_commands="sed perl"
+
+missing_counter=0
+for needed_command in $needed_commands; do
+    if ! hash "$needed_command" >/dev/null 2>&1; then
+        printf "Command not found in PATH: %s\n" "$needed_command" >&2
+        : $((missing_counter++))
+    fi
+done
+
+if [[ $missing_counter -eq 1 ]]; then
+    printf "At least %d command is missing, install it\n" "$missing_counter" >&2
+    exit 1
+elif [[ $missing_counter -gt 1 ]]; then
+    printf "At least %d commands are missing, install them\n" "$missing_counter" >&2
+    exit 2
+fi
+#----------------------------------------------------------------------------
+
+# List of builtin commands
+builtin_cmds="alias bg bind break builtin caller case cd command compgen complete compopt continue coproc declare dirs disown echo enable eval exec exit export false fc fg for function getopts hash help history jobs kill let local logout mapfile popd printf pushd pwd read readarray readonly return select set shift shopt source filename suspend test time times trap true type typeset ulimit umask unalias unset until variables wait while"
+
+# Makes temporary files
+mkdir --parents $HOME/tmp
+tempfile1=$(mktemp --tmpdir=$HOME/tmp)
+tempfile2=$(mktemp --tmpdir=$HOME/tmp) 
+tempfile3=$(mktemp --tmpdir=$HOME/tmp)
+tempfile4=$(mktemp --tmpdir=$HOME/tmp)
+
+# Using L, S or D option?
+flagoption=${1##-}
+
+# Command whose flags we want to check
+shift
+my_cmd=$1
+shift
+
+# Does that command exist? If not, exit 1.
+hash "$my_cmd" >/dev/null 2>&1 || 
+    { printf "Oops! Command ${YELLOW}%s${NC} was not found. \n" "$my_cmd" >&2 ; exit 1 ; }
+
+case $flagoption in
+    l|L|long)
+        # Is that command a builtin command? Then it normally has only short flags. Do nothing.
+        [[ $builtin_cmds =~ \ $my_cmd\  ]] && echo "$my_cmd $*" && exit 0
+#            { echo "This is a builtin command. No expansions." ; exit 0 ; }
+
+        # Is it tcpdump? Only short flags. Do nothing.
+        [[ $my_cmd == tcpdump ]] && echo "$my_cmd $*" && exit 0
+
+        # Processes one argument (proc_arg -f, proc_arg -eda, proc_arg file, proc_arg --extended etc)
+        # to check if a transformation to long flags is possible (then does it).
+        proc_arg () {
+            # ℘ = hack to bypass "-e" and "-n" problems with echo 
+            # (since    echo -e  returns nothing, and can't be bypassed by quotes or escaping)
+            if [[ $(echo ℘$1 | sed 's/^℘\(..\).*/\1/') = -- ]]   # Deals with double-dashes
+            then  echo $1
+
+            elif [[ $(echo ℘$1 | sed 's/^℘\(.\).*/\1/') = - ]]   # Deals with single-dashes    
+            then
+                # Remove the dash
+                paramset=$(echo ℘$1 | tr --delete ℘-)
+
+                # Make a variable of what help to use. Normally "--help"
+                help_option=$([[ $my_cmd == xz ]] && 
+                    echo "--long-help" || {
+                        [[ $my_cmd == mpg123 ]] && 
+                        echo "--longhelp" ||
+                        echo "--help"
+                    })
+
+                # Find only the lines that have space and dash followed by any one flag (e.g. " -f")
+                # Special treatment for the `file' command, which outputs to STDERROR.
+                if ([[ $my_cmd == file ]] | [[ $my_cmd == netstat ]]); then 
+                    $my_cmd $help_option 2> $tempfile2
+                    cat $tempfile2 | grep " [-][$paramset]" > $tempfile1 
+                    > $tempfile2
+                else
+                    $my_cmd $help_option | expand -t 8 | grep " [-][$paramset]" > $tempfile1 
+                fi
+
+                # Add spaces between characters, for the "for" below
+                paramset=$(echo $paramset | sed 's/./& /g') 
+
+                # Expand each flag
+                for flag in $paramset; do
+                cat $tempfile1 | 
+                    # This one filters out when the flag/paramset appears in the comments in the right
+                    grep " [-][$flag]" | 
+                    grep --invert-match "[^, ] [-]$flag" | 
+                    head --lines=1 > $tempfile2 
+                    
+                    # Does this flag have a longform?
+                    if grep --quiet "[-][-]" $tempfile2; then
+                    cat $tempfile2 |
+                        # Triangulation hack to make "--" one-character wide
+                        sed 's/--/℘/g' |
+
+                        # Awwww... (◕‿◕) 
+                        #    Isn't that a beauty of legibility?
+                        #    Isn't that intuitive at first glance?
+                        sed 's/^ *-[^℘]*℘\([^, =)[]*\)\(=\)*.*/--\1\2/' >> $tempfile3    
+
+                    else
+                        echo ℘-$flag | sed 's/℘//g' >> $tempfile3
+                    fi
+                done
+
+                cat $tempfile3 | sed ':a;$ ! N;s/\n/ /;ta;' 
+                rm --force $tempfile{1..3}
+
+            else [[ $(echo ℘$1 | sed 's/^℘\(.\).*/\1/') != - ]]   # Deals with undashed arguments
+                echo $1
+            fi        
+        }
+
+        # Processes each block and adds to a temporary file, concatenating.
+        for i in $@; do proc_arg $i; shift; done >> $tempfile4          
+
+        # Reads from the file, puts it into one line, puts back the command name, output to STDOUT
+        cat $tempfile4 | 
+            sed ':a;$ ! N;s/\n/ /;ta;' | 
+            sed "s/^/$my_cmd /" | 
+            sed "s/= -*/=/g"    # for cases like: head -n2  or whatis -s1
+
+        # Cleanup
+        rm --force $tempfile{1..4}
+    ;;
+
+    s|S|short)
+        # Is that command a builtin command? Then it normally has only short flags.
+        [[ $builtin_cmds =~ \ $my_cmd\  ]] && 
+            { echo "This is a builtin command, and should have only short flags." ; exit 0 ; }
+
+        # Processes one argument (proc_arg -f, proc_arg -eda, proc_arg file, proc_arg --extended etc)
+        # to check if a transformation to short flags is possible (then does it).
+        proc_arg () {
+            # ℘ = hack to bypass "-e" and "-n" problems with echo 
+            # (since    echo -e  returns nothing, and can't be bypassed by quotes or escaping)
+            if [[ $(echo ℘$1 | sed 's/^℘\(..\).*/\1/') = -- ]]   # Deals with double-dashes    
+            then
+                # Keep the dashes
+                full_paramset=$(echo ℘$1 | tr --delete ℘)
+                paramset=$(echo ℘$1 | tr --delete ℘ | 
+                    sed 's/=.*//')                      # if: --long-flag=something
+                paramset_value=$(echo ℘$1 | tr --delete ℘ | 
+                    sed --silent /=/p | sed 's/.*=//')        # if: --long-flag=something
+
+                # Make a variable of what help to use. Normally "--help"
+                help_option=$([[ $my_cmd == xz ]] && 
+                    echo "--long-help" || {
+                        [[ $my_cmd == mpg123 ]] &&   
+                        # FIXME: but isn't quite working with mpg123 here, why?
+                        echo "--longhelp" ||
+                        echo "--help"
+                    })
+
+                # Find only the lines that have space and dash followed by any one flag (e.g. " -f")
+                # Special treatment for the `file' command, which outputs to STDERROR.
+                if ([[ $my_cmd == file ]] | [[ $my_cmd == netstat ]]); then 
+                    $my_cmd $help_option 2> $tempfile2
+                    cat $tempfile2 | 
+                        expand -t 8 | 
+                        sed -n /$paramset/p > $tempfile1 
+                    > $tempfile2
+                else
+                    $my_cmd $help_option | 
+                        expand -t 8 | 
+                        sed -n /$paramset/p > $tempfile1 
+                fi
+                
+                # Reduce long flag to short form
+                cat $tempfile1 | 
+                    # This one filters out when the paramset appears in the comments in the right
+                    sed --silent /$paramset/p | 
+                    grep --invert-match "[^, ] $paramset" | 
+                    head --lines=1 > $tempfile2 
+                    
+                    # Does this flag have a shortform?
+                    if grep --quiet "[ ][-][^-][/,]" $tempfile2; then
+                        cat $tempfile2 |
+                            sed "s@^ *\(-[^-]\)\(,  *\|\/\)$paramset.*@\1 $paramset_value @"
+                    else
+                        cat $tempfile2 |
+                            sed "s/.*$paramset.*/$full_paramset/"
+                    fi
+
+            elif [[ $(echo ℘$1 | sed 's/^℘\(.\).*/\1/') = - ]]   # Deals with single-dashes    
+            then
+                echo ℘$1 | tr --delete ℘=
+                
+            elif [[ $(echo ℘$1 | sed 's/^℘\(.\).*/\1/') != - ]]   # Deals with no-dashes    
+            then
+                echo $1
+
+            fi        
+        }
+
+        # Processes each block and adds to a temporary file, concatenating.
+        for arg in $@; do proc_arg $arg; shift; done >> $tempfile3          
+
+        # Reads from the file, puts it into one line, puts back the command name, output to STDOUT
+        cat $tempfile3 | 
+            sed ':a;$ ! N;s/ *\n */ /;ta;' | 
+            sed "s/^/$my_cmd /" |
+            # Is the command wget? Then don't condense shortflags. Else, do condense them.
+            # But keep original order intact, don't try to sort it.
+            # It would convert, for example:
+            #   rsync -a -e -i --prune-empty-dirs=thing -y blorg -k -o
+            # to
+            #   rsync -aeim thing -y blorg -ko
+            { [[ $my_cmd == wget ]] && 
+                cat ||     # dummy, only to close the pipe
+                perl -C -pe 's/(?<=-[^-]) -([^-])\b/$1/ge'
+            }
+
+        # Cleanup
+        rm --force $tempfile{1..3}
+    ;;
+
+    d|D|desc)
+        # Creates a list of command flags one per line; discards anything that doesn't start with a dash
+        for paramset in $@; do echo ℘$paramset | sed 's/℘//g' >> $tempfile1; done
+
+        # Workaround for annoying commands with only single-dashed long flags
+        single_dash_cmds="lynx w3m"
+        grep --quiet $my_cmd <(echo $single_dash_cmds) && 
+            sed --in-place '/-[^-]/ s/-/--/g' $tempfile1
+
+        cat $tempfile1 | 
+            sed --silent '/^-/ p' |
+            sed '/^-[^-]/ s/[^-]/&\n-/g' |
+            sed '/^-$/ d' | 
+            sed 's/=.*// ; s/-/[-]/g' > $tempfile2
+
+        # A highlight function, for clearer results
+        hili () { 
+            e="$1";
+            shift;
+            grep --colour=always --extended-regexp --no-filename "$e|$" "$@"
+        }
+
+        # Creates a file with commands to look it up in the CMD --help, then source it
+        # First, checks if it's an "annoying command"
+        if grep --quiet $my_cmd <(echo $single_dash_cmds); then
+            sed --in-place 's/\[-\]\[-\]/[-]/g' $tempfile2
+            sed "s#.*#$my_cmd -help  | expand -t 8 | sed 's/$/  /' | grep ' &' | grep ' * &\[[]*[/, =]' | hili ' &'#" \
+                $tempfile2 > $tempfile3
+
+        else
+            sed "s#.*#$my_cmd --help | expand -t 8 | sed 's/$/  /' | grep '[ /]&' | grep '[, ]*[ /]&[[]*[/, =]' | hili '[ /]&'#" \
+                $tempfile2 > $tempfile3
+            # Is that command a builtin command? Then help is called differently.
+            [[ $builtin_cmds =~ \ $my_cmd\  ]] && sed --in-place "s/$my_cmd --help/help $my_cmd/" $tempfile3
+            # Is the command `xz'? Then use long-help.
+            [[ $my_cmd == xz ]] && 
+                sed --in-place 's/--help/--long-help/' $tempfile3
+            # Is the command `mpg123'? Then use longhelp.
+            [[ $my_cmd == mpg123 ]] && 
+                sed --in-place 's/--help/--longhelp/' $tempfile3
+            # Is the command `file' or `netstat'? They output help to STDERROR, move around it.
+            ([[ $my_cmd == file ]] | [[ $my_cmd == netstat ]]) && 
+                sed --in-place 's/--help/--help 2> $tempfile4; cat $tempfile4/' $tempfile3
+            # Is the command `tcpdump'? Get from man tcpdump
+            [[ $my_cmd == tcpdump ]] && 
+                sed --in-place 's/tcpdump --help/man tcpdump/' $tempfile3
+        
+        fi
+
+        # Show what command it is, and sources the temp file
+        echo -e "${DARKGRAY}$(whatis $my_cmd)${NC}"
+        . $tempfile3 
+
+        # Cleanup
+        rm --force $tempfile{1..4}
+    ;;
+
+    *)
+        echo -e "
+    First argument must be '${YELLOW}long${NC}', '${YELLOW}short${NC}' or '${YELLOW}help${NC}'. Try again.
+    Try executing simply ${YELLOW}$prog${NC} for help on its usage.
+        "
+    ;;
+esac
+
+# FIXME: issue: cp -p (no long flags, but one appears in the info at the right that isn't it.)
+# FIXME: issue: wget -nv -nc     # Too much trouble; will leave it like that, or add exceptions by command.
+
+#------------------END of PROGRAM----------------------------
+
