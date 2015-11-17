@@ -67,9 +67,9 @@ ls (1)               - list directory contents
   -h, --human-readable       with -l, print sizes in human readable format  
       --group-directories-first 
 ```
-and 
+or try this meta-acronym example...
 
-`flax d rsync -acronyms                       # A meta-acronym?`
+`flax d rsync -acronyms`
 
 ```
 rsync (1)            - a fast, versatile, remote (and local) file-copying tool
@@ -93,7 +93,7 @@ echo (1)             - display a line of text
       -n        do not append a newline
 ```
 
-...and with commands that use XF86-style long flags (-myoption):
+...and with commands that use XF86-style long flags (`-myoption`):
 
 `flax d lynx -ftp -vikeys`
 
