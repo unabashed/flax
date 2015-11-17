@@ -24,7 +24,7 @@ Each of those can be useful for different reasons.
 
 Try those to see the output:
 
-```
+```bash
 # Invented, makes no sense
 flax long wget -r --relative -H -Q 6 -D de,ca,com 
 
