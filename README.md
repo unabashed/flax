@@ -21,7 +21,10 @@ Each of those can be useful for different reasons.
 ## Examples
 
 ### To get long flags
-```bash
+
+Try those to see the output:
+
+```
 # Invented, makes no sense
 flax long wget -r --relative -H -Q 6 -D de,ca,com 
 
@@ -55,7 +58,7 @@ outputs:
 
 `flax d ls -XAGh --group-directories-first`
 
-```bash
+```
 ls (1)               - list directory contents
                              extension -X, size -S, time -t, version -v  
   -X                         sort alphabetically by entry extension  
@@ -68,7 +71,7 @@ and
 
 `flax d rsync -acronyms                       # A meta-acronym?`
 
-```bash
+```
 rsync (1)            - a fast, versatile, remote (and local) file-copying tool
  -a, --archive               archive mode; equals -rlptgoD (no -H,-A,-X)  
  -c, --checksum              skip based on checksum, not mod-time & size  
@@ -84,7 +87,7 @@ Also works with builtin functions...
 
 `flax d echo -en`
 
-```bash
+```
 echo (1)             - display a line of text
       -e        enable interpretation of the following backslash escapes  
       -n        do not append a newline
@@ -94,7 +97,7 @@ echo (1)             - display a line of text
 
 `flax d lynx -ftp -vikeys`
 
-```bash
+```
 lynx (1)             - a general purpose distributed information browser for the World Wide Web
   -ftp              disable ftp access (off)  
   -vikeys           enable vi-like key movement (off)
