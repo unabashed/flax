@@ -40,18 +40,14 @@ flax l $(xsel -ob) | xsel -ib
 
 ### To get short flags
 
-`flax S ls -X --almost-all --no-group -l --human-readable`
-
-outputs: 
-
+`flax S ls -X --almost-all --no-group -l --human-readable`  
+outputs:  
 `ls -XAGlh`
 
 and
 
-`flax s curl --proxytunnel --include --netrc --insecure --fail --list-only --output --speed-time --data`
-
-outputs: 
-
+`flax s curl --proxytunnel --include --netrc --insecure --fail --list-only --output --speed-time --data`  
+outputs:  
 `curl -pinkfloyd`
 
 ### To get descriptions
